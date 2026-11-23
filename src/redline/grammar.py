@@ -42,6 +42,30 @@ def diff_flags(source: str, corrected: str, offset: int = 0) -> list[Flag]:
     return flags
 
 
+def chunk_long(text: str, spans: list[tuple[int, int]], max_words: int = 60) -> list[tuple[int, int]]:
+    """Split sentences longer than max_words, preferring clause boundaries (, ; :).
+
+    The correction model has fixed input and output lengths. A run-on sentence past them comes back
+    cut short, and the diff would report the missing tail as errors.
+    """
+    out: list[tuple[int, int]] = []
+    for a, b in spans:
+        toks = [(m.start() + a, m.end() + a) for m in _TOKEN.finditer(text[a:b])]
+        if len(toks) <= max_words:
+            out.append((a, b))
+            continue
+        i = 0
+        while i < len(toks):
+            window = toks[i : i + max_words]
+            if i + max_words >= len(toks):
+                cut = len(window)
+            else:
+                cut = max((k + 1 for k, (s, e) in enumerate(window) if text[e - 1] in ",;:"), default=len(window))
+            out.append((window[0][0], window[cut - 1][1]))
+            i += cut
+    return out
+
+
 class GrammarChecker:
     """Wraps a seq2seq grammar-correction model. Loads on first use."""
 
@@ -69,21 +93,27 @@ class GrammarChecker:
         for i in range(0, len(sentences), self.batch_size):
             chunk = sentences[i : i + self.batch_size]
             enc = self._tok([self.prefix + s for s in chunk], return_tensors="pt",
-                            padding=True, truncation=True, max_length=256)
+                            padding=True, truncation=True, max_length=512)
             with torch.inference_mode():
-                ids = self._model.generate(**enc, max_new_tokens=160, num_beams=1)
+                ids = self._model.generate(**enc, max_new_tokens=256, num_beams=1)
             results.extend(self._tok.batch_decode(ids, skip_special_tokens=True))
         return results
 
     def correct(self, sentence: str) -> str:
         return self.correct_batch([sentence])[0]
 
+    def check_many(self, texts: list[str]) -> list[list[Flag]]:
+        """Check several texts with one batched pass through the model."""
+        jobs: list[tuple[int, int, int]] = []  # (text index, start, end)
+        for ti, text in enumerate(texts):
+            for a, b in chunk_long(text, split_sentences(text)):
+                if re.search(r"[A-Za-z]", text[a:b]):
+                    jobs.append((ti, a, b))
+        fixed = self.correct_batch([texts[ti][a:b] for ti, a, b in jobs]) if jobs else []
+        out: list[list[Flag]] = [[] for _ in texts]
+        for (ti, a, b), new in zip(jobs, fixed):
+            out[ti].extend(diff_flags(texts[ti][a:b], new, offset=a))
+        return out
+
     def check(self, text: str) -> list[Flag]:
-        spans = [(a, b) for a, b in split_sentences(text) if re.search(r"[A-Za-z]", text[a:b])]
-        if not spans:
-            return []
-        fixed = self.correct_batch([text[a:b] for a, b in spans])
-        flags: list[Flag] = []
-        for (a, b), new in zip(spans, fixed):
-            flags.extend(diff_flags(text[a:b], new, offset=a))
-        return flags
+        return self.check_many([text])[0]

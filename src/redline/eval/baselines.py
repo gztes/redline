@@ -20,11 +20,8 @@ class RedlineGrammar:
             self.name = f"redline[{model_id.split('/')[-1]}]"
 
     def spans(self, texts: list[str]) -> list[list[tuple[int, int]]]:
-        # Eval texts are single sentences, so batch them straight through the model.
-        fixed = self.checker.correct_batch(texts)
-        from redline.grammar import diff_flags
-
-        return [[(f.start, f.end) for f in diff_flags(t, c)] for t, c in zip(texts, fixed)]
+        # Same code path as the hotkey app and CLI (sentence split, long-sentence chunking).
+        return [[(f.start, f.end) for f in flags] for flags in self.checker.check_many(texts)]
 
     def close(self):
         pass
