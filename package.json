@@ -1,0 +1,9 @@
+{
+  "name": "redline-eval",
+  "private": true,
+  "type": "module",
+  "description": "Runs the Harper baseline for the redline eval.",
+  "dependencies": {
+    "harper.js": "3.0.0"
+  }
+}
