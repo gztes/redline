@@ -21,6 +21,11 @@ SETS = {
         "member": "ABCN.dev.gold.bea19.m2",
         "terms": "W&I+LOCNESS v2.1 (BEA-2019). Non-commercial research licence; see the BEA-2019 page.",
     },
+    "bea19native": {
+        "url": "https://www.cl.cam.ac.uk/research/nl/bea2019st/data/wi+locness_v2.1.bea19.tar.gz",
+        "member": "N.dev.gold.bea19.m2",
+        "terms": "LOCNESS native-speaker essays from W&I+LOCNESS v2.1 (BEA-2019). Same licence as above.",
+    },
 }
 
 
@@ -38,7 +43,7 @@ def download(name: str) -> Path:
     with urllib.request.urlopen(req, timeout=120) as r:
         blob = r.read()
     with tarfile.open(fileobj=io.BytesIO(blob), mode="r:gz") as tar:
-        member = next(m for m in tar.getmembers() if m.name.endswith(spec["member"]))
+        member = next(m for m in tar.getmembers() if m.name.rsplit("/", 1)[-1] == spec["member"])
         out.write_bytes(tar.extractfile(member).read())
     print(f"{name}: saved {out}\n  terms: {spec['terms']}")
     return out

@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
 
     e = sub.add_parser("eval", help="run an eval")
     e.add_argument("which", choices=["grammar", "style", "flip"])
-    e.add_argument("--dataset", choices=["conll14", "bea19dev"], default="conll14")
+    e.add_argument("--dataset", choices=["conll14", "bea19dev", "bea19native"], default="conll14")
     e.add_argument("--systems", default="redline,languagetool,harper")
     e.add_argument("--limit", type=int)
 
