@@ -1,0 +1,19 @@
+# My own writing rules. Edit freely: these are preferences, not grammar.
+
+# Words that carry no meaning in my copy.
+filler = ["things", "stuff", "basically", "really", "very", "just", "actually", "literally"]
+
+# Phrases that make text read as AI-written.
+ai_tells = [
+    "delve",
+    "delve into",
+    "tapestry",
+    "testament to",
+    "in today's fast-paced",
+    "it's worth noting",
+    "navigate the complexities",
+    "game-changer",
+    "unlock the power",
+    "seamless",
+    "seamlessly",
+]
