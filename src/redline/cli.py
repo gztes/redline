@@ -49,6 +49,10 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("data", help="download the public eval sets into data/public")
 
+    b = sub.add_parser("build-sets", help="build the personal eval sets from your own writing")
+    b.add_argument("--source", action="append", default=[], help="extra text file of your own writing")
+    b.add_argument("--public-flips", action="store_true", help="only build synthetic flip pairs from public BEA sentences")
+
     a = sub.add_parser("label", help="label your own sentences for the style eval")
     a.add_argument("--port", type=int, default=8765)
 
@@ -73,13 +77,20 @@ def main(argv: list[str] | None = None) -> int:
         if args.which == "grammar":
             run.run_grammar_eval(args.dataset, args.systems.split(","), limit=args.limit)
         elif args.which == "style":
-            run.run_style_eval(args.systems.split(","))
+            run.run_style_eval(["redline-style", *args.systems.split(",")])
         else:
             run.run_flip_eval()
     elif args.cmd == "data":
         from redline.eval.data import download_all
 
         download_all()
+    elif args.cmd == "build-sets":
+        from redline.eval.personal import build_public_flip_set, build_sets
+
+        if args.public_flips:
+            print(build_public_flip_set())
+        else:
+            print(build_sets([Path(x) for x in args.source]))
     elif args.cmd == "label":
         from redline.eval.label import serve
 

@@ -75,3 +75,32 @@ def score(gold: list[dict[int, list[tuple]]], pred: list[list[Span]], beta: floa
         "per_type_recall": {t: type_hit[t] / type_tot[t] for t in sorted(type_tot)},
         "per_type_count": dict(sorted(type_tot.items())),
     }
+
+
+def binary_scores(probs: list[float], labels: list[bool], threshold: float, beta: float = 0.5,
+                  n_boot: int = 1000, seed: int = 0) -> dict:
+    """Pair-level scores for the meaning-flip check: a pair is flagged if P(contradiction) >= threshold."""
+    rows = [(p >= threshold, bool(y)) for p, y in zip(probs, labels)]
+
+    def agg(sample):
+        tp = sum(f and y for f, y in sample)
+        fp = sum(f and not y for f, y in sample)
+        fn = sum(y and not f for f, y in sample)
+        return tp, fp, fn, _f(tp, tp + fp, tp, tp + fn, beta)
+
+    tp, fp, fn, (p, r, f) = agg(rows)
+    rng = random.Random(seed)
+    fs = sorted(agg([rows[rng.randrange(len(rows))] for _ in rows])[3][2] for _ in range(n_boot)) if rows else [0.0]
+    ci = (fs[int(0.025 * (len(fs) - 1))], fs[int(0.975 * (len(fs) - 1))])
+    return {"p": p, "r": r, "f": f, "ci_f": ci, "tp": tp, "fp": fp, "fn": fn,
+            "n": len(rows), "n_pos": sum(y for _, y in rows), "threshold": threshold}
+
+
+def pick_threshold(probs: list[float], labels: list[bool], beta: float = 0.5) -> float:
+    """Threshold with the best F0.5 on a dev set. Candidates are the observed probabilities."""
+    best_t, best_f = 0.5, -1.0
+    for t in sorted(set(probs)):
+        f = binary_scores(probs, labels, t, beta, n_boot=1)["f"]
+        if f > best_f:
+            best_t, best_f = t, f
+    return best_t

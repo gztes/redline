@@ -42,3 +42,20 @@ def test_ci_brackets_point_estimate():
     r = score(gold, pred, n_boot=200)
     lo, hi = r["ci_f"]
     assert lo <= r["f"] <= hi and lo < hi
+
+
+from redline.eval.scoring import binary_scores, pick_threshold
+
+
+def test_binary_scores():
+    r = binary_scores([0.9, 0.8, 0.2, 0.7], [True, False, False, True], threshold=0.5, n_boot=20)
+    assert (r["tp"], r["fp"], r["fn"]) == (2, 1, 0)
+    assert r["p"] == pytest.approx(2 / 3) and r["r"] == 1.0
+    assert r["n"] == 4 and r["n_pos"] == 2
+
+
+def test_pick_threshold_separates():
+    probs = [0.95, 0.9, 0.6, 0.3, 0.1]
+    labels = [True, True, False, False, False]
+    t = pick_threshold(probs, labels)
+    assert 0.6 < t <= 0.9
